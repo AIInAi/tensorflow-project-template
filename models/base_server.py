@@ -2,25 +2,36 @@ import tensorflow as tf
 
 
 class BaseServer(object):
-
     in_progress = False
     prediction = None
     session = None
     graph = None
+    frozen = False
     feed_dict = {}
     output_ops = []
     input_ops = []
 
-    def __init__(self, model_fp, input_tensor_names, output_tensor_names, device):
+    def __init__(self, model_fp, input_tensor_names, output_tensor_names, device, frozen=True):
         self.model_fp = model_fp
         self.input_tensor_names = input_tensor_names
         self.output_tensor_names = output_tensor_names
+        self.frozen = frozen
 
         with tf.device(device):
             self._load_graph()
             self._init_predictor()
 
     def _load_graph(self):
+        if self.frozen:
+            self._load_frozen_graph()
+        else:
+            self._restore_from_ckpt()
+
+    def _restore_from_ckpt(self):
+        self.saver = tf.train.Saver()
+        self.saver.restore(self.session, self.model_fp)
+
+    def _load_frozen_graph(self):
         self.graph = tf.Graph()
         with self.graph.as_default():
             od_graph_def = tf.GraphDef()
